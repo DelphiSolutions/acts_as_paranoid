@@ -40,8 +40,8 @@ module ActsAsParanoid
       def paranoid_default_scope_sql
         if string_type_with_deleted_value?
           self.all.table[paranoid_column].eq(nil).
-            or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value])).
-            to_sql
+              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value])).
+              to_sql
         else
           self.all.table[paranoid_column].eq(nil).to_sql
         end
@@ -60,18 +60,21 @@ module ActsAsParanoid
       end
 
       def dependent_associations
-        self.reflect_on_all_associations.select {|a| [:destroy, :delete_all].include?(a.options[:dependent]) }
+        self.reflect_on_all_associations.select { |a| [:destroy, :delete_all].include?(a.options[:dependent]) }
       end
 
       def delete_now_value
         case paranoid_configuration[:column_type]
-        when "time" then Time.now
-        when "boolean" then true
-        when "string" then paranoid_configuration[:deleted_value]
+          when "time" then
+            Time.now
+          when "boolean" then
+            true
+          when "string" then
+            paranoid_configuration[:deleted_value]
         end
       end
 
-    protected
+      protected
 
       def without_paranoid_default_scope
         scope = self.all
@@ -128,8 +131,8 @@ module ActsAsParanoid
 
     def recover(options={})
       options = {
-        :recursive => self.class.paranoid_configuration[:recover_dependent_associations],
-        :recovery_window => self.class.paranoid_configuration[:dependent_recovery_window]
+          :recursive => self.class.paranoid_configuration[:recover_dependent_associations],
+          :recovery_window => self.class.paranoid_configuration[:dependent_recovery_window]
       }.merge(options)
 
       self.class.transaction do
@@ -157,8 +160,12 @@ module ActsAsParanoid
           scope = scope.deleted_inside_time_window(paranoid_value, window)
         end
 
-        scope.each do |object|
-          object.recover(options)
+        unless reflection.options[:dependent] == :delete_all
+          scope.each do |object|
+            object.recover(options)
+          end
+        else
+          scope.update_all(self.class.paranoid_column => nil)
         end
       end
     end
@@ -180,7 +187,7 @@ module ActsAsParanoid
 
     def deleted?
       !(paranoid_value.nil? ||
-        (self.class.string_type_with_deleted_value? && paranoid_value != self.class.delete_now_value))
+          (self.class.string_type_with_deleted_value? && paranoid_value != self.class.delete_now_value))
     end
 
     alias_method :destroyed?, :deleted?
