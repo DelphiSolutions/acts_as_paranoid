@@ -6,7 +6,7 @@ module ActsAsParanoid
 
     module ClassMethods
       def self.extended(base)
-        base.define_callbacks :recover
+        base.define_callbacks :recover, terminator: 'result == false'
       end
 
       def before_recover(method)
@@ -143,7 +143,7 @@ module ActsAsParanoid
             self.paranoid_value = nil
             self.save!
           end
-          
+
           recover_dependent_associations(paranoid_original_value, options[:recovery_window], options) if options[:recursive]
         end
       end
@@ -154,7 +154,7 @@ module ActsAsParanoid
         recover_reflection(reflection, paranoid_original_value, window, options)
       end
     end
-    
+
     def recover_dependent_associations(paranoid_original_value, window, options)
       self.class.dependent_associations.each do |reflection|
         recover_reflection(reflection, paranoid_original_value, window, options)
@@ -179,7 +179,7 @@ module ActsAsParanoid
         scope.each do |object|
           object.recover(options)
         end
-      else 
+      else
         scope.update_all(self.class.paranoid_column => nil)
       end
     end
@@ -223,7 +223,7 @@ module ActsAsParanoid
     alias_method :destroyed?, :deleted?
 
     private
-    
+
     def get_reflection_class(reflection)
       if reflection.macro == :belongs_to && reflection.options.include?(:polymorphic)
         klass = self.send(reflection.foreign_type)
