@@ -6,7 +6,7 @@ module ActsAsParanoid
 
     module ClassMethods
       def self.extended(base)
-        base.define_callbacks :recover
+        base.define_callbacks :recover, terminator: 'result == false'
       end
 
       def before_recover(method)
