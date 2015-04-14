@@ -111,13 +111,19 @@ module ActsAsParanoid
     end
 
     def destroy!
-      if !deleted?
+      unless deleted?
         with_transaction_returning_status do
-          run_callbacks :destroy do
-            # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
-            self.class.delete_all(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+          if self.class.paranoid_configuration[:dependent_destroy_paranoid_only]
+            destroy_paranoid_associations
             self.paranoid_value = self.class.delete_now_value
-            self
+            self.save!
+          else
+            run_callbacks :destroy do
+              # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
+              self.class.delete_all(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+              self.paranoid_value = self.class.delete_now_value
+              self
+            end
           end
         end
       else
@@ -181,6 +187,22 @@ module ActsAsParanoid
 
         scope.each do |object|
           object.destroy!
+        end
+      end
+    end
+
+    def destroy_paranoid_associations
+      self.class.dependent_associations.each do |reflection|
+        if reflection.klass.paranoid?
+          dependent_type = reflection.options[:dependent]
+          association_scope = association(reflection.name).association_scope
+          if dependent_type == :destroy
+            association_scope.each do |object|
+              object.send(reflection.options[:dependent])
+            end
+          elsif dependent_type == :delete_all
+            association_scope.delete_all
+          end
         end
       end
     end
