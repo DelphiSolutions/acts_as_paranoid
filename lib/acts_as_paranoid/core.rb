@@ -65,11 +65,11 @@ module ActsAsParanoid
 
       def delete_now_value
         case paranoid_configuration[:column_type]
-          when "time" then
+          when "time"
             Time.now
-          when "boolean" then
+          when "boolean"
             true
-          when "string" then
+          when "string"
             paranoid_configuration[:deleted_value]
         end
       end
