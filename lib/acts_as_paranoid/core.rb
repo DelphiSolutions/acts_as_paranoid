@@ -100,8 +100,8 @@ module ActsAsParanoid
 
     def destroy_fully!
       with_transaction_returning_status do
+        destroy_dependent_associations!
         run_callbacks :destroy do
-          destroy_dependent_associations!
           # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
           self.class.delete_all!(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
           self.paranoid_value = self.class.delete_now_value
@@ -181,10 +181,8 @@ module ActsAsParanoid
       self.class.dependent_associations.each do |reflection|
         next unless (klass = get_reflection_class(reflection)).paranoid?
 
-        scope = klass.only_deleted
-
         # Merge in the association's scope
-        scope = scope.merge(association(reflection.name).association_scope)
+        scope = association(reflection.name).association_scope
 
         scope.each do |object|
           object.destroy!
