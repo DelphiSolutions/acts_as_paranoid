@@ -185,7 +185,7 @@ module ActsAsParanoid
         scope = association(reflection.name).association_scope
 
         scope.each do |object|
-          object.destroy!
+          object.destroy_fully!
         end
       end
     end
