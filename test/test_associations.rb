@@ -2,8 +2,6 @@ require 'test_helper'
 
 class AssociationsTest < ParanoidBaseTest
   def test_removal_with_associations
-    # This test shows that the current implementation doesn't handle
-    # assciation deletion correctly (when hard deleting via parent-object)
     paranoid_company_1 = ParanoidDestroyCompany.create! :name => "ParanoidDestroyCompany #1"
     paranoid_company_2 = ParanoidDeleteCompany.create! :name => "ParanoidDestroyCompany #1"
     paranoid_company_1.paranoid_products.create! :name => "ParanoidProduct #1"
@@ -19,21 +17,34 @@ class AssociationsTest < ParanoidBaseTest
     assert_equal 1, ParanoidDestroyCompany.with_deleted.count
     assert_equal 2, ParanoidProduct.with_deleted.count
 
-    ParanoidDestroyCompany.with_deleted.first.destroy!
+    ParanoidDestroyCompany.with_deleted.first.destroy
     assert_equal 0, ParanoidDestroyCompany.count
     assert_equal 1, ParanoidProduct.count
     assert_equal 0, ParanoidDestroyCompany.with_deleted.count
     assert_equal 1, ParanoidProduct.with_deleted.count
 
-    ParanoidDeleteCompany.with_deleted.first.destroy!
+    ParanoidDeleteCompany.first.destroy
+    assert_equal 0, ParanoidDeleteCompany.count
+    assert_equal 0, ParanoidProduct.count
+    assert_equal 1, ParanoidDeleteCompany.with_deleted.count
+    assert_equal 1, ParanoidProduct.with_deleted.count
+
+    ParanoidDeleteCompany.with_deleted.first.destroy
     assert_equal 0, ParanoidDeleteCompany.count
     assert_equal 0, ParanoidProduct.count
     assert_equal 0, ParanoidDeleteCompany.with_deleted.count
     assert_equal 0, ParanoidProduct.with_deleted.count
   end
 
+  def test_belongs_to_with_scope_option
+    paranoid_has_many_dependant = ParanoidHasManyDependant.new
+    includes_values = ParanoidTime.includes(:not_paranoid).includes_values
+
+    assert_equal includes_values, paranoid_has_many_dependant.association(:paranoid_time_with_scope).scope.includes_values
+  end
+
   def test_belongs_to_with_deleted
-    paranoid_time = ParanoidTime.first 
+    paranoid_time = ParanoidTime.first
     paranoid_has_many_dependant = paranoid_time.paranoid_has_many_dependants.create(:name => 'dependant!')
 
     assert_equal paranoid_time, paranoid_has_many_dependant.paranoid_time
@@ -46,7 +57,7 @@ class AssociationsTest < ParanoidBaseTest
   end
 
   def test_belongs_to_polymorphic_with_deleted
-    paranoid_time = ParanoidTime.first 
+    paranoid_time = ParanoidTime.first
     paranoid_has_many_dependant = ParanoidHasManyDependant.create!(:name => 'dependant!', :paranoid_time_polymorphic_with_deleted => paranoid_time)
 
     assert_equal paranoid_time, paranoid_has_many_dependant.paranoid_time
@@ -72,19 +83,19 @@ class AssociationsTest < ParanoidBaseTest
   end
 
   def test_belongs_to_options
-    paranoid_time = ParanoidHasManyDependant.reflections[:paranoid_time]
+    paranoid_time = ParanoidHasManyDependant.reflections.with_indifferent_access[:paranoid_time]
     assert_equal :belongs_to, paranoid_time.macro
     assert_nil paranoid_time.options[:with_deleted]
   end
 
   def test_belongs_to_with_deleted_options
-    paranoid_time_with_deleted = ParanoidHasManyDependant.reflections[:paranoid_time_with_deleted]
+    paranoid_time_with_deleted = ParanoidHasManyDependant.reflections.with_indifferent_access[:paranoid_time_with_deleted]
     assert_equal :belongs_to, paranoid_time_with_deleted.macro
     assert paranoid_time_with_deleted.options[:with_deleted]
   end
 
   def test_belongs_to_polymorphic_with_deleted_options
-    paranoid_time_polymorphic_with_deleted = ParanoidHasManyDependant.reflections[:paranoid_time_polymorphic_with_deleted]
+    paranoid_time_polymorphic_with_deleted = ParanoidHasManyDependant.reflections.with_indifferent_access[:paranoid_time_polymorphic_with_deleted]
     assert_equal :belongs_to, paranoid_time_polymorphic_with_deleted.macro
     assert paranoid_time_polymorphic_with_deleted.options[:with_deleted]
   end
@@ -101,6 +112,9 @@ class AssociationsTest < ParanoidBaseTest
     child.destroy
     assert_paranoid_deletion(child)
 
+    parent.reload
+
+    assert_equal [], parent.paranoid_has_many_dependants.to_a
     assert_equal [child], parent.paranoid_has_many_dependants.with_deleted.to_a
   end
 

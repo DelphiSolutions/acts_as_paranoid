@@ -1,14 +1,16 @@
 # ActsAsParanoid
 
-A simple plugin which hides records instead of deleting them, being able to recover them.
+[![Build Status](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid.png?branch=master)](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid)
 
-**This branch targets Rails 3.2.** If you're working with another version, switch to the corresponding branch.
+A Rails plugin to add soft delete.
 
-## Credits
+This gem can be used to hide records instead of deleting them, making them recoverable later.
 
-This plugin was inspired by [acts_as_paranoid](http://github.com/technoweenie/acts_as_paranoid) and [acts_as_active](http://github.com/fernandoluizao/acts_as_active).
+## Support
 
-While porting it to Rails 3, I decided to apply the ideas behind those plugins to an unified solution while removing a **lot** of the complexity found in them. I eventually ended up writing a new plugin from scratch.
+**This branch targets Rails 4.x.**
+
+If you're working with another version, switch to the corresponding branch, or require an older version of the acts_as_paranoid gem.
 
 ## Usage
 
@@ -187,13 +189,15 @@ Associations are also supported. From the simplest behaviors you'd expect to mor
 
 ```ruby
 class Parent < ActiveRecord::Base
-	has_many :children, :class_name => "ParanoiacChild"
+  has_many :children, :class_name => "ParanoiacChild"
 end
 
 class ParanoiacChild < ActiveRecord::Base
-	belongs_to :parent
-  belongs_to :parent_including_deleted, :class_name => "Parent", :with_deleted => true
-  # You cannot name association *_with_deleted
+  acts_as_paranoid
+  belongs_to :parent
+
+  # You may need to provide a foreign_key like this
+  belongs_to :parent_including_deleted, :class_name => "Parent", foreign_key => 'parent_id', :with_deleted => true
 end
 
 parent = Parent.first
@@ -215,31 +219,9 @@ Watch out for these caveats:
 -   `unscoped` will return all records, deleted or not
 -   Assignment of `self.table_name` in a model must come before `acts_as_paranoid` or you will get SQL errors.
 
-# Support
-
-This gem supports the most recent versions of Rails and Ruby.
-
-## Rails
-
-For Rails 3.2 check the README at the [rails3.2](https://github.com/goncalossilva/rails3_acts_as_paranoid/tree/rails3.2) branch and add this to your Gemfile:
-
-	gem "acts_as_paranoid", "~>0.4.0"
-
-For Rails 3.1 check the README at the [rails3.1](https://github.com/goncalossilva/rails3_acts_as_paranoid/tree/rails3.1) branch and add this to your Gemfile:
-
-	gem "rails3_acts_as_paranoid", "~>0.1.4"
-
-For Rails 3.0 check the README at the [rails3.0](https://github.com/goncalossilva/rails3_acts_as_paranoid/tree/rails3.0) branch and add this to your Gemfile:
-
-	gem "rails3_acts_as_paranoid", "~>0.0.9"
-
-
-## Ruby
-
-This gem is tested on Ruby 1.9, JRuby and Rubinius (both in 1.9 mode). It *might* work fine in 1.8, but it's not officially supported.
-
 # Acknowledgements
 
+* To [Rick Olson](https://github.com/technoweenie) for creating acts_as_paranoid
 * To [cheerfulstoic](https://github.com/cheerfulstoic) for adding recursive recovery
 * To [Jonathan Vaught](https://github.com/gravelpup) for adding paranoid validations
 * To [Geoffrey Hichborn](https://github.com/phene) for improving the overral code quality and adding support for after_commit
@@ -247,5 +229,7 @@ This gem is tested on Ruby 1.9, JRuby and Rubinius (both in 1.9 mode). It *might
 * To [vikramdhillon](https://github.com/vikramdhillon) for the idea and initial implementation of support for string column type
 * To [Craig Walker](https://github.com/softcraft-development) for Rails 3.1 support and fixing various pending issues
 * To [Charles G.](https://github.com/chuckg) for Rails 3.2 support and for making a desperately needed global code refactoring
+* To [Gonçalo Silva](https://github.com/goncalossilva) for supporting this gem prior to v0.4.3
+* To [Jean Boussier](https://github.com/byroot) for initial Rails 4.0.0 support
 
-Copyright © 2010 Gonçalo Silva, released under the MIT license
+See `LICENSE`.
