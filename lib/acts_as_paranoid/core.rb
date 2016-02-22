@@ -146,6 +146,7 @@ module ActsAsParanoid
           paranoid_original_value = self.paranoid_value
           self.paranoid_value = nil
           self.save!
+
           recover_dependent_associations(paranoid_original_value, options[:recovery_window], options) if options[:recursive]
         end
       end
@@ -163,7 +164,7 @@ module ActsAsParanoid
         # We can only recover by window if both parent and dependant have a
         # paranoid column type of :time.
         if self.class.paranoid_column_type == :time && klass.paranoid_column_type == :time
-          scope = scope.merge(reflection.klass.deleted_inside_time_window(paranoid_original_value, window))
+          scope = scope.deleted_inside_time_window(paranoid_original_value, window)
         end
 
         unless reflection.options[:dependent] == :delete_all
