@@ -7,6 +7,7 @@ module ActsAsParanoid
     module ClassMethods
       def self.extended(base)
         base.define_callbacks :recover, terminator: lambda { |target, result| result == false }
+        base.define_callbacks :soft_destroy, terminator: lambda { |target, result| result == false }
       end
 
       def before_recover(method)
@@ -15,6 +16,14 @@ module ActsAsParanoid
 
       def after_recover(method)
         set_callback :recover, :after, method
+      end
+
+      def before_soft_destroy(method)
+        set_callback :soft_destroy, :before, method
+      end
+
+      def after_soft_destroy(method)
+        set_callback :soft_destroy, :after, method
       end
 
       def with_deleted
@@ -114,9 +123,11 @@ module ActsAsParanoid
       unless deleted?
         with_transaction_returning_status do
           if self.class.paranoid_configuration[:dependent_destroy_paranoid_only]
-            destroy_paranoid_associations
-            self.paranoid_value = self.class.delete_now_value
-            self.save!
+            run_callbacks :soft_destroy do
+              destroy_paranoid_associations
+              self.paranoid_value = self.class.delete_now_value
+              self.save!
+            end
           else
             run_callbacks :destroy do
               # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
