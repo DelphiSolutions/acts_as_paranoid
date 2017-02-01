@@ -208,6 +208,32 @@ child.parent #=> nil
 child.parent_including_deleted #=> Parent (it works!)
 ```
 
+### Creating Custom Callbacks
+
+Define custom callbacks in lib/acts_as_paranoid/core.rb. Depending on the :after , :before callbacks required, use set_callbacks as shown below.
+
+```ruby
+def self.extended(base)
+  base.define_callbacks :soft_destroy, terminator: lambda { |target, result| result == false }
+end
+
+def before_soft_destroy(method)
+  set_callback :soft_destroy, :before, method
+end
+
+def after_soft_destroy(method)
+  set_callback :soft_destroy, :after, method
+end
+```
+usage in acts_as_paranoid class
+```ruby
+before_soft_destroy :peform_before_soft_destroy
+after_soft_destroy  :peform_after_soft__destroy
+```
+### Custom callbacks
+- `before_soft_destroy` : This is executed before soft_destroy happens
+- `before_soft_destroy` : This is executed after marking the record to be soft destroyed
+
 ## Caveats
 
 Watch out for these caveats:
