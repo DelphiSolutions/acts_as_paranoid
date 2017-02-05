@@ -205,7 +205,7 @@ module ActsAsParanoid
       self.class.dependent_associations.each do |reflection|
         if reflection.klass.paranoid?
           dependent_type = reflection.options[:dependent]
-          association_scope = association(reflection.name).association_scope
+          association_scope = association(reflection.name).association_scope.where(self.class.paranoid_column => nil)
           if dependent_type == :destroy
             association_scope.each do |object|
               object.send(reflection.options[:dependent])
