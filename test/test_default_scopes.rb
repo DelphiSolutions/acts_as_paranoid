@@ -4,12 +4,14 @@ class MultipleDefaultScopesTest < ParanoidBaseTest
   def setup
     setup_db
 
-    # Naturally, the default scope for humans is male. Sexism++
-    ParanoidHuman.create! :gender => 'male'
-    ParanoidHuman.create! :gender => 'male'
-    ParanoidHuman.create! :gender => 'male'
-    ParanoidHuman.create! :gender => 'female'
+    ParanoidHuman.create! alien: false
+    ParanoidHuman.create! alien: false
+    ParanoidHuman.create! alien: false
+    # We're worried about bob...
+    ParanoidHuman.create! alien: true
+  end
 
+  def test_basic_scope
     assert_equal 3, ParanoidHuman.count
     assert_equal 4, ParanoidHuman.unscoped.count
   end
@@ -48,5 +50,10 @@ class MultipleDefaultScopesTest < ParanoidBaseTest
     assert_equal 0, ParanoidHuman.with_deleted.count
     assert_equal 0, ParanoidHuman.only_deleted.count
     assert_equal 1, ParanoidHuman.unscoped.count
+  end
+
+  def test_no_default_scope
+    assert_equal 4, LessParanoidHuman.count
+    assert_equal 4, LessParanoidHuman.unscoped.count
   end
 end

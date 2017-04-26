@@ -1,4 +1,6 @@
 require 'bundler'
+# Need this import first or specs can't run
+require 'active_record'
 begin
   Bundler.require(:default, :development)
 rescue Bundler::BundlerError => e
@@ -164,8 +166,8 @@ def setup_db
       timestamps t
     end
 
-    create_table :paranoid_humen do |t|
-      t.string   :gender
+    create_table :paranoid_humans do |t|
+      t.boolean  :alien
       t.datetime :deleted_at
 
       timestamps t
@@ -408,8 +410,14 @@ class ParanoidTree < ActiveRecord::Base
 end
 
 class ParanoidHuman < ActiveRecord::Base
+  self.table_name = "paranoid_humans"
   acts_as_paranoid
-  default_scope { where('gender = ?', 'male') }
+  default_scope { where('alien = ?', false) }
+end
+
+class LessParanoidHuman < ActiveRecord::Base
+  self.table_name = "paranoid_humans"
+  acts_as_paranoid without_default_scope: true
 end
 
 class ParanoidAndroid < ActiveRecord::Base

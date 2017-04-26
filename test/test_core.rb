@@ -209,17 +209,17 @@ class ParanoidTest < ParanoidBaseTest
 
   def test_recursive_recovery_for_belongs_to_polymorphic
     child_1 = ParanoidAndroid.create
-    section_1 = ParanoidSection.create(:paranoid_thing => child_1)
+    section_1 = ParanoidSection.create(paranoid_thing: child_1)
 
-    child_2 = ParanoidHuman.create(:gender => 'male')
-    section_2 = ParanoidSection.create(:paranoid_thing => child_2)
+    child_2 = ParanoidHuman.create(alien: false)
+    section_2 = ParanoidSection.create(paranoid_thing: child_2)
 
     assert_equal section_1.paranoid_thing, child_1
     assert_equal section_1.paranoid_thing.class, ParanoidAndroid
     assert_equal section_2.paranoid_thing, child_2
     assert_equal section_2.paranoid_thing.class, ParanoidHuman
 
-    parent = ParanoidTime.create(:name => "paranoid_parent")
+    parent = ParanoidTime.create(name: "paranoid_parent")
     parent.paranoid_sections << section_1
     parent.paranoid_sections << section_2
 

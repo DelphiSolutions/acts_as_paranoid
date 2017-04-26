@@ -1,6 +1,6 @@
 # ActsAsParanoid
 
-[![Build Status](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid.png?branch=master)](https://travis-ci.org/ActsAsParanoid/acts_as_paranoid)
+[![Build Status](https://travis-ci.org/OpenGov/acts_as_paranoid.png?branch=opengov-master)](https://travis-ci.org/OpenGov/acts_as_paranoid)
 
 A Rails plugin to add soft delete.
 
@@ -244,6 +244,20 @@ Watch out for these caveats:
 -   You cannot name association `*_with_deleted`
 -   `unscoped` will return all records, deleted or not
 -   Assignment of `self.table_name` in a model must come before `acts_as_paranoid` or you will get SQL errors.
+
+# Specs
+To run specs for this repository, first get bundler and install dependencies
+```
+bundle install
+```
+
+If it complains about sqlite3 you may need to install the sqlite3 headers. Using `gem install sqlite3` should suggest how to do this.
+
+```
+bundle exec rake test
+```
+
+And all the specs should be green.
 
 # Acknowledgements
 
