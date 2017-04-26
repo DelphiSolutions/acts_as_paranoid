@@ -212,8 +212,33 @@ class ParanoidTime < ActiveRecord::Base
   belongs_to :not_paranoid, :dependent => :destroy
 end
 
+class LessParanoidTime < ActiveRecord::Base
+  self.table_name = "paranoid_times"
+  acts_as_paranoid without_default_scope: true
+  validates_uniqueness_of :name
+
+  has_many :paranoid_has_many_dependants, :dependent => :destroy
+  has_many :paranoid_booleans, :dependent => :destroy
+  has_many :not_paranoids, :dependent => :delete_all
+  has_many :paranoid_sections, :dependent => :destroy
+
+  has_one :has_one_not_paranoid, :dependent => :destroy
+
+  belongs_to :not_paranoid, :dependent => :destroy
+end
+
 class ParanoidBoolean < ActiveRecord::Base
-  acts_as_paranoid :column_type => "boolean", :column => "is_deleted"
+  acts_as_paranoid column_type: "boolean", column: "is_deleted"
+  validates_as_paranoid
+  validates_uniqueness_of_without_deleted :name
+
+  belongs_to :paranoid_time
+  has_one :paranoid_has_one_dependant, :dependent => :destroy
+end
+
+class LessParanoidBoolean < ActiveRecord::Base
+  self.table_name = "paranoid_booleans"
+  acts_as_paranoid column_type: "boolean", column: "is_deleted", without_default_scope: true
   validates_as_paranoid
   validates_uniqueness_of_without_deleted :name
 
@@ -222,7 +247,12 @@ class ParanoidBoolean < ActiveRecord::Base
 end
 
 class ParanoidString < ActiveRecord::Base
-  acts_as_paranoid :column_type => "string", :column => "deleted", :deleted_value => "dead"
+  acts_as_paranoid column_type: :string, column: :deleted, deleted_value: :dead
+end
+
+class LessParanoidString < ActiveRecord::Base
+  self.table_name = "paranoid_strings"
+  acts_as_paranoid column_type: :string, column: :deleted, deleted_value: :dead, without_default_scope: true
 end
 
 class NotParanoid < ActiveRecord::Base

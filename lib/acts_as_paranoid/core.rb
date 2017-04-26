@@ -30,6 +30,10 @@ module ActsAsParanoid
         without_paranoid_default_scope
       end
 
+      def without_deleted
+        with_paranoid_default_scope
+      end
+
       def only_deleted
         if string_type_with_deleted_value?
           without_paranoid_default_scope.where("#{paranoid_column_reference} IS ?", paranoid_configuration[:deleted_value])
@@ -49,7 +53,7 @@ module ActsAsParanoid
       def paranoid_default_scope_sql
         if string_type_with_deleted_value?
           self.all.table[paranoid_column].eq(nil).
-              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value])).
+              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value].to_s)).
               to_sql
         else
           self.all.table[paranoid_column].eq(nil).to_sql
@@ -73,13 +77,13 @@ module ActsAsParanoid
       end
 
       def delete_now_value
-        case paranoid_configuration[:column_type]
-          when "time"
+        case paranoid_column_type
+          when :time
             Time.now
-          when "boolean"
+          when :boolean
             true
-          when "string"
-            paranoid_configuration[:deleted_value]
+          when :string
+            paranoid_configuration[:deleted_value].to_s
         end
       end
 
@@ -90,9 +94,15 @@ module ActsAsParanoid
         if scope.where_values.include? paranoid_default_scope_sql
           # ActiveRecord 4.1
           scope.where_values.delete(paranoid_default_scope_sql)
-        else
-          scope = scope.with_default_scope
-          scope.where_values.delete(paranoid_default_scope_sql)
+        end
+
+        scope
+      end
+
+      def with_paranoid_default_scope
+        scope = self.all
+        unless scope.where_values.include? paranoid_default_scope_sql
+          scope = scope.where(paranoid_default_scope_sql)
         end
 
         scope
