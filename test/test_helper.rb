@@ -448,6 +448,7 @@ end
 class LessParanoidHuman < ActiveRecord::Base
   self.table_name = "paranoid_humans"
   acts_as_paranoid without_default_scope: true
+  default_scope { where('alien = ?', false) }
 end
 
 class ParanoidAndroid < ActiveRecord::Base
