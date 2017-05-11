@@ -2,10 +2,10 @@ require 'test_helper'
 
 class AssociationsTest < ParanoidBaseTest
   def test_removal_with_associations
-    paranoid_company_1 = ParanoidDestroyCompany.create! :name => "ParanoidDestroyCompany #1"
-    paranoid_company_2 = ParanoidDeleteCompany.create! :name => "ParanoidDestroyCompany #1"
-    paranoid_company_1.paranoid_products.create! :name => "ParanoidProduct #1"
-    paranoid_company_2.paranoid_products.create! :name => "ParanoidProduct #2"
+    paranoid_company_1 = ParanoidDestroyCompany.create!(name: "ParanoidDestroyCompany #1")
+    paranoid_company_2 = ParanoidDeleteCompany.create!(name: "ParanoidDeleteCompany #2")
+    paranoid_company_1.paranoid_products.create!(name: "ParanoidProduct #1")
+    paranoid_company_2.paranoid_products.create!(name: "ParanoidProduct #2")
 
     assert_equal 1, ParanoidDestroyCompany.count
     assert_equal 1, ParanoidDeleteCompany.count

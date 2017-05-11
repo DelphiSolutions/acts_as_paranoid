@@ -1,11 +1,13 @@
 language: ruby
 script: "bundle exec rake test"
+sudo: required
 rvm:
   - 1.9.3
   - 2.0.0
   - 2.1
   - ruby-head
   - jruby
+  - jruby-9.1.7.0
   - rbx
 gemfile:
   - gemfiles/active_record_40.gemfile
@@ -14,8 +16,10 @@ gemfile:
   - gemfiles/active_record_edge.gemfile
 matrix:
   allow_failures:
+    - rvm: 1.9.3
     - rvm: ruby-head
     - rvm: rbx
     - rvm: jruby
+    - gemfile: gemfiles/active_record_40.gemfile
     - gemfile: gemfiles/active_record_edge.gemfile
   fast_finish: true

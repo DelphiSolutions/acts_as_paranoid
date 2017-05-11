@@ -121,8 +121,8 @@ module ActsAsParanoid
       with_transaction_returning_status do
         destroy_dependent_associations!
         run_callbacks :destroy do
-          # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
-          self.class.delete_all!(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+          # We need to use delete_all! here because we overwrite everything else to not actually delete
+          self.class.delete_all!(id: self.id) if persisted?
           self.paranoid_value = self.class.delete_now_value
           freeze
         end
@@ -140,8 +140,8 @@ module ActsAsParanoid
             end
           else
             run_callbacks :destroy do
-              # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
-              self.class.delete_all(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+              # We need to use delete_all here because we overwrite everything else to not actually delete
+              self.class.delete_all(id: self.id) if persisted?
               self.paranoid_value = self.class.delete_now_value
               self
             end
@@ -199,32 +199,11 @@ module ActsAsParanoid
     end
 
     def destroy_dependent_associations!
-      self.class.dependent_associations.each do |reflection|
-        next unless (klass = get_reflection_class(reflection)).paranoid?
-
-        # Merge in the association's scope
-        scope = association(reflection.name).association_scope
-
-        scope.each do |object|
-          object.destroy_fully!
-        end
-      end
+      paranoid_associations_typed_destroy(:destroy_fully!)
     end
 
     def destroy_paranoid_associations
-      self.class.dependent_associations.each do |reflection|
-        if reflection.klass.paranoid?
-          dependent_type = reflection.options[:dependent]
-          association_scope = association(reflection.name).association_scope.where(self.class.paranoid_column => nil)
-          if dependent_type == :destroy
-            association_scope.each do |object|
-              object.send(reflection.options[:dependent])
-            end
-          elsif dependent_type == :delete_all
-            association_scope.delete_all
-          end
-        end
-      end
+      paranoid_associations_typed_destroy(:destroy)
     end
 
     def deleted?
@@ -246,6 +225,27 @@ module ActsAsParanoid
 
     def paranoid_value=(value)
       self.send("#{self.class.paranoid_column}=", value)
+    end
+
+
+    def paranoid_associations_typed_destroy(destroy_type = nil)
+      self.class.dependent_associations.each do |reflection|
+        klass = get_reflection_class(reflection)
+        next unless klass.paranoid?
+
+        dependent_type = reflection.options[:dependent]
+        # Merge in the association's scope
+        association_scope = association(reflection.name).association_scope
+        if dependent_type == :destroy
+          destroy_type = :destroy if destroy_type.nil?
+          unless destroy_type.to_sym == :destroy_fully!
+            association_scope = association_scope.where(klass.paranoid_column => nil)
+          end
+          association_scope.each { |object| object.send(destroy_type) }
+        elsif dependent_type == :delete_all
+          association_scope.delete_all!
+        end
+      end
     end
   end
 end
