@@ -8,12 +8,17 @@ module ActsAsParanoid
     end
 
     module ClassMethods
-      def belongs_to_with_deleted(target, options = {})
-        with_deleted = options.delete(:with_deleted)
-        result = belongs_to_without_deleted(target, options)
+      def belongs_to_with_deleted(target, scope = nil, options = {})
+        with_deleted = (scope.is_a?(Hash) ? scope : options).delete(:with_deleted)
+        result = belongs_to_without_deleted(target, scope, options)
 
         if with_deleted
-          result.options[:with_deleted] = with_deleted
+          if result.is_a? Hash
+            result.values.last.options[:with_deleted] = with_deleted
+          else
+            result.options[:with_deleted] = with_deleted
+          end
+
           unless method_defined? "#{target}_with_unscoped"
             class_eval <<-RUBY, __FILE__, __LINE__
               def #{target}_with_unscoped(*args)

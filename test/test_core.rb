@@ -4,9 +4,8 @@ class ParanoidTest < ParanoidBaseTest
   def test_paranoid?
     assert !NotParanoid.paranoid?
     assert_raise(NoMethodError) { NotParanoid.delete_all! }
-    assert_raise(NoMethodError) { NotParanoid.first.destroy! }
     assert_raise(NoMethodError) { NotParanoid.with_deleted }
-    assert_raise(NoMethodError) { NotParanoid.only_deleted }    
+    assert_raise(NoMethodError) { NotParanoid.only_deleted }
 
     assert ParanoidTime.paranoid?
   end
@@ -30,29 +29,63 @@ class ParanoidTest < ParanoidBaseTest
     ParanoidBoolean.delete_all("name = 'paranoid' OR name = 'really paranoid'")
     ParanoidString.first.destroy
     assert_equal 2, ParanoidTime.count
+    assert_equal 3, LessParanoidTime.count
     assert_equal 1, ParanoidBoolean.count
+    assert_equal 3, LessParanoidBoolean.count
     assert_equal 0, ParanoidString.count
-    assert_equal 1, ParanoidTime.only_deleted.count 
-    assert_equal 2, ParanoidBoolean.only_deleted.count
-    assert_equal 1, ParanoidString.only_deleted.count
+    assert_equal 1, LessParanoidString.count
     assert_equal 3, ParanoidTime.with_deleted.count
+    assert_equal 3, LessParanoidTime.with_deleted.count
     assert_equal 3, ParanoidBoolean.with_deleted.count
+    assert_equal 3, LessParanoidBoolean.with_deleted.count
     assert_equal 1, ParanoidString.with_deleted.count
+    assert_equal 1, LessParanoidString.with_deleted.count
+    assert_equal 2, ParanoidTime.without_deleted.count
+    assert_equal 2, LessParanoidTime.without_deleted.count
+    assert_equal 1, ParanoidBoolean.without_deleted.count
+    assert_equal 1, LessParanoidBoolean.without_deleted.count
+    assert_equal 0, ParanoidString.without_deleted.count
+    assert_equal 0, LessParanoidString.without_deleted.count
+    assert_equal 1, ParanoidTime.only_deleted.count
+    assert_equal 1, LessParanoidTime.only_deleted.count
+    assert_equal 2, ParanoidBoolean.only_deleted.count
+    assert_equal 2, LessParanoidBoolean.only_deleted.count
+    assert_equal 1, ParanoidString.only_deleted.count
+    assert_equal 1, LessParanoidString.only_deleted.count
   end
 
   def test_real_removal
-    ParanoidTime.first.destroy!
+    assert_equal 3, ParanoidTime.count
+    assert_equal 3, ParanoidBoolean.count
+    assert_equal 1, ParanoidString.count
+
+    ParanoidTime.first.destroy_fully!
     ParanoidBoolean.delete_all!("name = 'extremely paranoid' OR name = 'really paranoid'")
-    ParanoidString.first.destroy!
+    ParanoidString.first.destroy_fully!
     assert_equal 2, ParanoidTime.count
+    assert_equal 2, LessParanoidTime.count
     assert_equal 1, ParanoidBoolean.count
+    assert_equal 1, LessParanoidBoolean.count
     assert_equal 0, ParanoidString.count
+    assert_equal 0, LessParanoidString.count
     assert_equal 2, ParanoidTime.with_deleted.count
+    assert_equal 2, LessParanoidTime.with_deleted.count
     assert_equal 1, ParanoidBoolean.with_deleted.count
+    assert_equal 1, LessParanoidBoolean.with_deleted.count
     assert_equal 0, ParanoidString.with_deleted.count
+    assert_equal 0, LessParanoidString.with_deleted.count
+    assert_equal 2, ParanoidTime.without_deleted.count
+    assert_equal 2, LessParanoidTime.without_deleted.count
+    assert_equal 1, ParanoidBoolean.without_deleted.count
+    assert_equal 1, LessParanoidBoolean.without_deleted.count
+    assert_equal 0, ParanoidString.without_deleted.count
+    assert_equal 0, LessParanoidString.without_deleted.count
     assert_equal 0, ParanoidTime.only_deleted.count
+    assert_equal 0, LessParanoidTime.only_deleted.count
     assert_equal 0, ParanoidBoolean.only_deleted.count
+    assert_equal 0, LessParanoidBoolean.only_deleted.count
     assert_equal 0, ParanoidString.only_deleted.count
+    assert_equal 0, LessParanoidString.only_deleted.count
 
     ParanoidTime.first.destroy
     ParanoidTime.only_deleted.first.destroy
@@ -60,7 +93,7 @@ class ParanoidTest < ParanoidBaseTest
 
     ParanoidTime.delete_all!
     assert_empty ParanoidTime.all
-    assert_empty ParanoidTime.with_deleted.all
+    assert_empty ParanoidTime.with_deleted
   end
 
   def test_non_persisted_destroy
@@ -75,6 +108,10 @@ class ParanoidTest < ParanoidBaseTest
     assert_nil pt.paranoid_value
     pt.destroy!
     assert_not_nil pt.paranoid_value
+  end
+
+  def test_removal_not_persisted
+    assert ParanoidTime.new.destroy
   end
 
   def test_recovery
@@ -93,7 +130,7 @@ class ParanoidTest < ParanoidBaseTest
 
   def setup_recursive_tests
     @paranoid_time_object = ParanoidTime.first
-   
+
     # Create one extra ParanoidHasManyDependant record so that we can validate
     # the correct dependants are recovered.
     ParanoidTime.where('id <> ?', @paranoid_time_object.id).first.paranoid_has_many_dependants.create(:name => "should not be recovered").destroy
@@ -141,12 +178,18 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 0, ParanoidHasOneDependant.count
     assert_equal 1, NotParanoid.count
     assert_equal 0, HasOneNotParanoid.count
+
+    assert_equal 3, ParanoidTime.with_deleted.count
+    assert_equal 4, ParanoidHasManyDependant.with_deleted.count
+    assert_equal 3, ParanoidBelongsDependant.with_deleted.count
+    assert_equal @paranoid_boolean_count + 3, ParanoidBoolean.with_deleted.count
+    assert_equal 3, ParanoidHasOneDependant.with_deleted.count
   end
 
   def test_recursive_real_removal
-    setup_recursive_tests 
+    setup_recursive_tests
 
-    @paranoid_time_object.destroy!
+    @paranoid_time_object.destroy_fully!
 
     assert_equal 0, ParanoidTime.only_deleted.count
     assert_equal 1, ParanoidHasManyDependant.only_deleted.count
@@ -180,8 +223,8 @@ class ParanoidTest < ParanoidBaseTest
     @paranoid_time_object.destroy
     @paranoid_time_object.reload
 
-    # Stop the following from recovering: 
-    #   - ParanoidHasManyDependant and its ParanoidBelongsDependant 
+    # Stop the following from recovering:
+    #   - ParanoidHasManyDependant and its ParanoidBelongsDependant
     #   - A single ParanoidBelongsDependant, but not its parent
     dependants = @paranoid_time_object.paranoid_has_many_dependants.with_deleted
     dependants.first.update_attribute(:deleted_at, 2.days.ago)
@@ -197,38 +240,38 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 1, NotParanoid.count
     assert_equal 0, HasOneNotParanoid.count
   end
-  
+
   def test_recursive_recovery_for_belongs_to_polymorphic
     child_1 = ParanoidAndroid.create
-    section_1 = ParanoidSection.create(:paranoid_thing => child_1)
-    
-    child_2 = ParanoidHuman.create(:gender => 'male')
-    section_2 = ParanoidSection.create(:paranoid_thing => child_2)
-    
+    section_1 = ParanoidSection.create(paranoid_thing: child_1)
+
+    child_2 = ParanoidHuman.create(alien: false)
+    section_2 = ParanoidSection.create(paranoid_thing: child_2)
+
     assert_equal section_1.paranoid_thing, child_1
     assert_equal section_1.paranoid_thing.class, ParanoidAndroid
     assert_equal section_2.paranoid_thing, child_2
     assert_equal section_2.paranoid_thing.class, ParanoidHuman
-    
-    parent = ParanoidTime.create(:name => "paranoid_parent")
+
+    parent = ParanoidTime.create(name: "paranoid_parent")
     parent.paranoid_sections << section_1
     parent.paranoid_sections << section_2
-    
+
     assert_equal 4, ParanoidTime.count
     assert_equal 2, ParanoidSection.count
     assert_equal 1, ParanoidAndroid.count
     assert_equal 1, ParanoidHuman.count
-    
+
     parent.destroy
-    
+
     assert_equal 3, ParanoidTime.count
     assert_equal 0, ParanoidSection.count
     assert_equal 0, ParanoidAndroid.count
     assert_equal 0, ParanoidHuman.count
-    
+
     parent.reload
     parent.recover
-    
+
     assert_equal 4, ParanoidTime.count
     assert_equal 2, ParanoidSection.count
     assert_equal 1, ParanoidAndroid.count
@@ -259,25 +302,25 @@ class ParanoidTest < ParanoidBaseTest
     ParanoidString.first.destroy
     assert ParanoidString.with_deleted.first.deleted?
   end
-  
-  def test_paranoid_destroy_callbacks    
+
+  def test_paranoid_destroy_callbacks
     @paranoid_with_callback = ParanoidWithCallback.first
     ParanoidWithCallback.transaction do
       @paranoid_with_callback.destroy
     end
-    
+
     assert @paranoid_with_callback.called_before_destroy
     assert @paranoid_with_callback.called_after_destroy
     assert @paranoid_with_callback.called_after_commit_on_destroy
   end
-  
+
   def test_hard_destroy_callbacks
     @paranoid_with_callback = ParanoidWithCallback.first
-    
+
     ParanoidWithCallback.transaction do
       @paranoid_with_callback.destroy!
     end
-    
+
     assert @paranoid_with_callback.called_before_destroy
     assert @paranoid_with_callback.called_after_destroy
     assert @paranoid_with_callback.called_after_commit_on_destroy
@@ -296,52 +339,52 @@ class ParanoidTest < ParanoidBaseTest
     end
 
       assert @paranoid_with_callback.called_before_recover
-      assert @paranoid_with_callback.called_after_recover    
+      assert @paranoid_with_callback.called_after_recover
   end
 
   def test_delete_by_multiple_id_is_paranoid
     model_a = ParanoidBelongsDependant.create
     model_b = ParanoidBelongsDependant.create
     ParanoidBelongsDependant.delete([model_a.id, model_b.id])
-    
+
     assert_paranoid_deletion(model_a)
     assert_paranoid_deletion(model_b)
   end
-  
+
   def test_destroy_by_multiple_id_is_paranoid
     model_a = ParanoidBelongsDependant.create
     model_b = ParanoidBelongsDependant.create
     ParanoidBelongsDependant.destroy([model_a.id, model_b.id])
-    
+
     assert_paranoid_deletion(model_a)
     assert_paranoid_deletion(model_b)
   end
-  
+
   def test_delete_by_single_id_is_paranoid
     model = ParanoidBelongsDependant.create
     ParanoidBelongsDependant.delete(model.id)
-    
+
     assert_paranoid_deletion(model)
   end
-  
+
   def test_destroy_by_single_id_is_paranoid
     model = ParanoidBelongsDependant.create
     ParanoidBelongsDependant.destroy(model.id)
-    
+
     assert_paranoid_deletion(model)
   end
-  
+
   def test_instance_delete_is_paranoid
     model = ParanoidBelongsDependant.create
     model.delete
-    
+
     assert_paranoid_deletion(model)
   end
-  
+
   def test_instance_destroy_is_paranoid
     model = ParanoidBelongsDependant.create
     model.destroy
-    
+
     assert_paranoid_deletion(model)
   end
 
@@ -351,15 +394,31 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 1, ParanoidString.where(:id => ps).count
   end
 
+  def test_string_type_with_no_nil_value_before_destroy_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    assert_equal 1, LessParanoidString.where(:id => ps).count
+  end
+
   def test_string_type_with_no_nil_value_after_destroy
     ps = ParanoidString.create!(:deleted => 'not dead')
     ps.destroy
     assert_equal 0, ParanoidString.where(:id => ps).count
   end
 
+  def test_string_type_with_no_nil_value_after_destroy_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    ps.destroy
+    assert_equal 1, LessParanoidString.where(:id => ps).count
+  end
+
   def test_string_type_with_no_nil_value_before_destroy_with_deleted
     ps = ParanoidString.create!(:deleted => 'not dead')
     assert_equal 1, ParanoidString.with_deleted.where(:id => ps).count
+  end
+
+  def test_string_type_with_no_nil_value_before_destroy_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    assert_equal 1, LessParanoidString.with_deleted.where(:id => ps).count
   end
 
   def test_string_type_with_no_nil_value_after_destroy_with_deleted
@@ -368,9 +427,20 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 1, ParanoidString.with_deleted.where(:id => ps).count
   end
 
+  def test_string_type_with_no_nil_value_after_destroy_with_deleted_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    ps.destroy
+    assert_equal 1, LessParanoidString.with_deleted.where(:id => ps).count
+  end
+
   def test_string_type_with_no_nil_value_before_destroy_only_deleted
     ps = ParanoidString.create!(:deleted => 'not dead')
     assert_equal 0, ParanoidString.only_deleted.where(:id => ps).count
+  end
+
+  def test_string_type_with_no_nil_value_before_destroy_only_deleted_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    assert_equal 0, LessParanoidString.only_deleted.where(:id => ps).count
   end
 
   def test_string_type_with_no_nil_value_after_destroy_only_deleted
@@ -379,9 +449,21 @@ class ParanoidTest < ParanoidBaseTest
     assert_equal 1, ParanoidString.only_deleted.where(:id => ps).count
   end
 
+  def test_string_type_with_no_nil_value_after_destroy_only_deleted_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    ps.destroy
+    assert_equal 1, LessParanoidString.only_deleted.where(:id => ps).count
+  end
+
   def test_string_type_with_no_nil_value_after_destroyed_twice
     ps = ParanoidString.create!(:deleted => 'not dead')
     2.times { ps.destroy }
     assert_equal 0, ParanoidString.with_deleted.where(:id => ps).count
+  end
+
+  def test_string_type_with_no_nil_value_after_destroyed_twice_without_scope
+    ps = LessParanoidString.create!(:deleted => 'not dead')
+    2.times { ps.destroy }
+    assert_equal 0, LessParanoidString.with_deleted.where(:id => ps).count
   end
 end

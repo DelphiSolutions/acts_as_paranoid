@@ -11,10 +11,15 @@ module ActsAsParanoid
         finder_class = find_finder_class_for(record)
         table = finder_class.arel_table
 
-        coder = record.class.serialized_attributes[attribute.to_s]
+        # TODO: Use record.class.column_types[attribute.to_s].coder ?
+        coder = record.class.column_types[attribute.to_s]
 
         if value && coder
-          value = coder.dump value
+          value = if coder.respond_to? :type_cast_for_database
+                    coder.type_cast_for_database value
+                  else
+                    coder.type_cast_for_write value
+                  end
         end
 
         relation = build_relation(finder_class, table, attribute, value)
