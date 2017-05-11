@@ -30,6 +30,10 @@ module ActsAsParanoid
         without_paranoid_default_scope
       end
 
+      def without_deleted
+        with_paranoid_default_scope
+      end
+
       def only_deleted
         if string_type_with_deleted_value?
           without_paranoid_default_scope.where("#{paranoid_column_reference} IS ?", paranoid_configuration[:deleted_value])
@@ -49,7 +53,7 @@ module ActsAsParanoid
       def paranoid_default_scope_sql
         if string_type_with_deleted_value?
           self.all.table[paranoid_column].eq(nil).
-              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value])).
+              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value].to_s)).
               to_sql
         else
           self.all.table[paranoid_column].eq(nil).to_sql
@@ -73,13 +77,13 @@ module ActsAsParanoid
       end
 
       def delete_now_value
-        case paranoid_configuration[:column_type]
-          when "time"
+        case paranoid_column_type
+          when :time
             Time.now
-          when "boolean"
+          when :boolean
             true
-          when "string"
-            paranoid_configuration[:deleted_value]
+          when :string
+            paranoid_configuration[:deleted_value].to_s
         end
       end
 
@@ -90,9 +94,15 @@ module ActsAsParanoid
         if scope.where_values.include? paranoid_default_scope_sql
           # ActiveRecord 4.1
           scope.where_values.delete(paranoid_default_scope_sql)
-        else
-          scope = scope.with_default_scope
-          scope.where_values.delete(paranoid_default_scope_sql)
+        end
+
+        scope
+      end
+
+      def with_paranoid_default_scope
+        scope = self.all
+        unless scope.where_values.include? paranoid_default_scope_sql
+          scope = scope.where(paranoid_default_scope_sql)
         end
 
         scope
@@ -111,8 +121,8 @@ module ActsAsParanoid
       with_transaction_returning_status do
         destroy_dependent_associations!
         run_callbacks :destroy do
-          # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
-          self.class.delete_all!(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+          # We need to use delete_all! here because we overwrite everything else to not actually delete
+          self.class.delete_all!(id: self.id) if persisted?
           self.paranoid_value = self.class.delete_now_value
           freeze
         end
@@ -130,8 +140,8 @@ module ActsAsParanoid
             end
           else
             run_callbacks :destroy do
-              # Handle composite keys, otherwise we would just use `self.class.primary_key.to_sym => self.id`.
-              self.class.delete_all(Hash[[Array(self.class.primary_key), Array(self.id)].transpose]) if persisted?
+              # We need to use delete_all here because we overwrite everything else to not actually delete
+              self.class.delete_all(id: self.id) if persisted?
               self.paranoid_value = self.class.delete_now_value
               self
             end
@@ -189,32 +199,11 @@ module ActsAsParanoid
     end
 
     def destroy_dependent_associations!
-      self.class.dependent_associations.each do |reflection|
-        next unless (klass = get_reflection_class(reflection)).paranoid?
-
-        # Merge in the association's scope
-        scope = association(reflection.name).association_scope
-
-        scope.each do |object|
-          object.destroy_fully!
-        end
-      end
+      paranoid_associations_typed_destroy(:destroy_fully!)
     end
 
     def destroy_paranoid_associations
-      self.class.dependent_associations.each do |reflection|
-        if reflection.klass.paranoid?
-          dependent_type = reflection.options[:dependent]
-          association_scope = association(reflection.name).association_scope.where(self.class.paranoid_column => nil)
-          if dependent_type == :destroy
-            association_scope.each do |object|
-              object.send(reflection.options[:dependent])
-            end
-          elsif dependent_type == :delete_all
-            association_scope.delete_all
-          end
-        end
-      end
+      paranoid_associations_typed_destroy(:destroy)
     end
 
     def deleted?
@@ -236,6 +225,27 @@ module ActsAsParanoid
 
     def paranoid_value=(value)
       self.send("#{self.class.paranoid_column}=", value)
+    end
+
+
+    def paranoid_associations_typed_destroy(destroy_type = nil)
+      self.class.dependent_associations.each do |reflection|
+        klass = get_reflection_class(reflection)
+        next unless klass.paranoid?
+
+        dependent_type = reflection.options[:dependent]
+        # Merge in the association's scope
+        association_scope = association(reflection.name).association_scope
+        if dependent_type == :destroy
+          destroy_type = :destroy if destroy_type.nil?
+          unless destroy_type.to_sym == :destroy_fully!
+            association_scope = association_scope.where(klass.paranoid_column => nil)
+          end
+          association_scope.each { |object| object.send(destroy_type) }
+        elsif dependent_type == :delete_all
+          association_scope.delete_all!
+        end
+      end
     end
   end
 end

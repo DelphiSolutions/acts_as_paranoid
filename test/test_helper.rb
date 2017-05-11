@@ -1,4 +1,6 @@
 require 'bundler'
+# Need this import first or specs can't run
+require 'active_record'
 begin
   Bundler.require(:default, :development)
 rescue Bundler::BundlerError => e
@@ -164,8 +166,8 @@ def setup_db
       timestamps t
     end
 
-    create_table :paranoid_humen do |t|
-      t.string   :gender
+    create_table :paranoid_humans do |t|
+      t.boolean  :alien
       t.datetime :deleted_at
 
       timestamps t
@@ -210,8 +212,33 @@ class ParanoidTime < ActiveRecord::Base
   belongs_to :not_paranoid, :dependent => :destroy
 end
 
+class LessParanoidTime < ActiveRecord::Base
+  self.table_name = "paranoid_times"
+  acts_as_paranoid without_default_scope: true
+  validates_uniqueness_of :name
+
+  has_many :paranoid_has_many_dependants, :dependent => :destroy
+  has_many :paranoid_booleans, :dependent => :destroy
+  has_many :not_paranoids, :dependent => :delete_all
+  has_many :paranoid_sections, :dependent => :destroy
+
+  has_one :has_one_not_paranoid, :dependent => :destroy
+
+  belongs_to :not_paranoid, :dependent => :destroy
+end
+
 class ParanoidBoolean < ActiveRecord::Base
-  acts_as_paranoid :column_type => "boolean", :column => "is_deleted"
+  acts_as_paranoid column_type: "boolean", column: "is_deleted"
+  validates_as_paranoid
+  validates_uniqueness_of_without_deleted :name
+
+  belongs_to :paranoid_time
+  has_one :paranoid_has_one_dependant, :dependent => :destroy
+end
+
+class LessParanoidBoolean < ActiveRecord::Base
+  self.table_name = "paranoid_booleans"
+  acts_as_paranoid column_type: "boolean", column: "is_deleted", without_default_scope: true
   validates_as_paranoid
   validates_uniqueness_of_without_deleted :name
 
@@ -220,7 +247,12 @@ class ParanoidBoolean < ActiveRecord::Base
 end
 
 class ParanoidString < ActiveRecord::Base
-  acts_as_paranoid :column_type => "string", :column => "deleted", :deleted_value => "dead"
+  acts_as_paranoid column_type: :string, column: :deleted, deleted_value: :dead
+end
+
+class LessParanoidString < ActiveRecord::Base
+  self.table_name = "paranoid_strings"
+  acts_as_paranoid column_type: :string, column: :deleted, deleted_value: :dead, without_default_scope: true
 end
 
 class NotParanoid < ActiveRecord::Base
@@ -408,8 +440,15 @@ class ParanoidTree < ActiveRecord::Base
 end
 
 class ParanoidHuman < ActiveRecord::Base
+  self.table_name = "paranoid_humans"
   acts_as_paranoid
-  default_scope { where('gender = ?', 'male') }
+  default_scope { where('alien = ?', false) }
+end
+
+class LessParanoidHuman < ActiveRecord::Base
+  self.table_name = "paranoid_humans"
+  acts_as_paranoid without_default_scope: true
+  default_scope { where('alien = ?', false) }
 end
 
 class ParanoidAndroid < ActiveRecord::Base
