@@ -36,9 +36,11 @@ module ActsAsParanoid
 
       def only_deleted
         if string_type_with_deleted_value?
-          without_paranoid_default_scope.where("#{paranoid_column_reference} IS ?", paranoid_configuration[:deleted_value])
+          without_paranoid_default_scope.where(paranoid_column_reference => paranoid_configuration[:deleted_value])
+        elsif boolean_type_not_nullable?
+          without_paranoid_default_scope.where(paranoid_column_reference => true)
         else
-          without_paranoid_default_scope.where("#{paranoid_column_reference} IS NOT ?", nil)
+          without_paranoid_default_scope.where.not(paranoid_column_reference => nil)
         end
       end
 
@@ -50,18 +52,24 @@ module ActsAsParanoid
         where(conditions).update_all(["#{paranoid_configuration[:column]} = ?", delete_now_value])
       end
 
-      def paranoid_default_scope_sql
+      def paranoid_default_scope
         if string_type_with_deleted_value?
           self.all.table[paranoid_column].eq(nil).
-              or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value].to_s)).
-              to_sql
+          or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value]))
+          # or(self.all.table[paranoid_column].not_eq(paranoid_configuration[:deleted_value].to_s)).to_sql # opengov version
+        elsif boolean_type_not_nullable?
+          self.all.table[paranoid_column].eq(false)
         else
-          self.all.table[paranoid_column].eq(nil).to_sql
+          self.all.table[paranoid_column].eq(nil)
         end
       end
 
       def string_type_with_deleted_value?
         paranoid_column_type == :string && !paranoid_configuration[:deleted_value].nil?
+      end
+
+      def boolean_type_not_nullable?
+        paranoid_column_type == :boolean && !paranoid_configuration[:allow_nulls]
       end
 
       def paranoid_column
@@ -91,9 +99,15 @@ module ActsAsParanoid
 
       def without_paranoid_default_scope
         scope = self.all
-        if scope.where_values.include? paranoid_default_scope_sql
-          # ActiveRecord 4.1
-          scope.where_values.delete(paranoid_default_scope_sql)
+
+        if ActiveRecord::VERSION::MAJOR < 5
+          # ActiveRecord 4.0.*
+          scope = scope.with_default_scope if ActiveRecord::VERSION::MINOR < 1
+          scope.where_values.delete(paranoid_default_scope)
+        else
+          scope = scope.unscope(where: paranoid_default_scope)
+          # Fix problems with unscope group chain
+          scope = scope.unscoped if scope.to_sql.include? paranoid_default_scope.to_sql
         end
 
         scope
@@ -101,11 +115,10 @@ module ActsAsParanoid
 
       def with_paranoid_default_scope
         scope = self.all
-        unless scope.where_values.include? paranoid_default_scope_sql
-          scope = scope.where(paranoid_default_scope_sql)
-        end
 
-        scope
+        return scope if scope.where_values.include? paranoid_default_scope_sql
+
+        scope.where(paranoid_default_scope_sql)
       end
     end
 
@@ -152,9 +165,7 @@ module ActsAsParanoid
       end
     end
 
-    def destroy
-      destroy!
-    end
+    alias_method :destroy, :destroy!
 
     def recover(options={})
       options = {
@@ -207,8 +218,13 @@ module ActsAsParanoid
     end
 
     def deleted?
-      !(paranoid_value.nil? ||
-          (self.class.string_type_with_deleted_value? && paranoid_value != self.class.delete_now_value))
+      !if self.class.string_type_with_deleted_value?
+        paranoid_value != self.class.delete_now_value || paranoid_value.nil?
+      elsif self.class.boolean_type_not_nullable?
+        paranoid_value == false
+      else
+        paranoid_value.nil?
+      end
     end
 
     alias_method :destroyed?, :deleted?

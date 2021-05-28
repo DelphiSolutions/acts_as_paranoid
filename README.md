@@ -8,9 +8,9 @@ This gem can be used to hide records instead of deleting them, making them recov
 
 ## Support
 
-**This branch targets Rails 4.x.**
+**This branch targets Rails 4.x. and 5.x**
 
-If you're working with another version, switch to the corresponding branch, or require an older version of the acts_as_paranoid gem.
+If you're working with another version, switch to the corresponding branch, or require an older version of the `acts_as_paranoid` gem.
 
 ## Usage
 
@@ -37,12 +37,18 @@ The values shown are the defaults. While *column* can be anything (as long as it
 
 If your column type is a `string`, you can also specify which value to use when marking an object as deleted by passing `:deleted_value` (default is "deleted"). Any records with a non-matching value in this column will be treated normally (ie: not deleted).
 
+If your column type is a `boolean`, it is possible to specify `allow_nulls` option which is `true` by default. When set to `false`, entities that have `false` value in this column will be considered not deleted, and those which have `true` will be considered deleted. When `true` everything that has a not-null value will be considered deleted.
+
 ### Filtering
 
-If a record is deleted by ActsAsParanoid, it won't be retrieved when accessing the database. So, `Paranoiac.all` will **not** include the deleted_records. if you want to access them, you have 2 choices:
+If a record is deleted by ActsAsParanoid, it won't be retrieved when accessing the database.
+
+So, `Paranoiac.all` will **not** include the **deleted records**.
+
+When you want to access them, you have 2 choices:
 
 ```ruby
-Paranoiac.only_deleted # retrieves the deleted records
+Paranoiac.only_deleted # retrieves only the deleted records
 Paranoiac.with_deleted # retrieves all records, deleted or not
 ```
 
@@ -67,7 +73,13 @@ paranoiac.destroy!
 Paranoiac.delete_all!(conditions)
 ```
 
-You can also permanently delete a record by calling `destroy` or `delete_all` on it **twice**. If a record was already deleted (hidden by ActsAsParanoid) and you delete it again, it will be removed from the database. Take this example:
+You can also permanently delete a record by calling `destroy_fully!` on the object.
+
+Alternatively you can permanently delete a record by calling `destroy` or `delete_all` on the object **twice**.
+
+If a record was already deleted (hidden by `ActsAsParanoid`) and you delete it again, it will be removed from the database.
+
+Take this example:
 
 ```ruby
 p = Paranoiac.first
@@ -83,7 +95,9 @@ Recovery is easy. Just invoke `recover` on it, like this:
 Paranoiac.only_deleted.where("name = ?", "not dead yet").first.recover
 ```
 
-All associations marked as `:dependent => :destroy` are also recursively recovered. If you would like to disable this behavior, you can call `recover` with the `recursive` option:
+All associations marked as `:dependent => :destroy` are also recursively recovered.
+
+If you would like to disable this behavior, you can call `recover` with the `recursive` option:
 
 ```ruby
 Paranoiac.only_deleted.where("name = ?", "not dead yet").first.recover(:recursive => false)
@@ -97,7 +111,13 @@ class Paranoiac < ActiveRecord::Base
 end
 ```
 
-By default, dependent records will be recovered if they were deleted within 2 minutes of the object upon which they depend.  This restores the objects to the state before the recursive deletion without restoring other objects that were deleted earlier.  The behavior is only available when both parent and dependant are using timestamp fields to mark deletion, which is the default behavior. This window can be changed with the `dependent_recovery_window` option:
+By default, dependent records will be recovered if they were deleted within 2 minutes of the object upon which they depend.
+
+This restores the objects to the state before the recursive deletion without restoring other objects that were deleted earlier.
+
+The behavior is only available when both parent and dependant are using timestamp fields to mark deletion, which is the default behavior.
+
+This window can be changed with the `dependent_recovery_window` option:
 
 ```ruby
 class Paranoiac < ActiveRecord::Base
@@ -125,9 +145,9 @@ ActiveRecord's built-in uniqueness validation does not account for records delet
 
 ```ruby
 class Paranoiac < ActiveRecord::Base
-    acts_as_paranoid
-  	validates_as_paranoid
-  	validates_uniqueness_of_without_deleted :name
+  acts_as_paranoid
+  validates_as_paranoid
+  validates_uniqueness_of_without_deleted :name
 end
 
 p1 = Paranoiac.create(:name => 'foo')
@@ -150,13 +170,15 @@ Paranoiac.with_deleted.first.deleted? #=> true
 
 ### Scopes
 
-As you've probably guessed, `with_deleted` and `only_deleted` are scopes. You can, however, chain them freely with other scopes you might have. This
+As you've probably guessed, `with_deleted` and `only_deleted` are scopes. You can, however, chain them freely with other scopes you might have.
+
+For example:
 
 ```ruby
 Paranoiac.pretty.with_deleted
 ```
 
-is exactly the same as
+This is exactly the same as:
 
 ```ruby
 Paranoiac.with_deleted.pretty
@@ -166,8 +188,8 @@ You can work freely with scopes and it will just work:
 
 ```ruby
 class Paranoiac < ActiveRecord::Base
-	acts_as_paranoid
-	scope :pretty, where(:pretty => true)
+  acts_as_paranoid
+  scope :pretty, where(:pretty => true)
 end
 
 Paranoiac.create(:pretty => true)
@@ -185,7 +207,9 @@ Paranoiac.pretty.only_deleted.count #=> 1
 
 ### Associations
 
-Associations are also supported. From the simplest behaviors you'd expect to more nifty things like the ones mentioned previously or the usage of the `:with_deleted` option with `belongs_to`
+Associations are also supported.
+
+From the simplest behaviors you'd expect to more nifty things like the ones mentioned previously or the usage of the `:with_deleted` option with `belongs_to`
 
 ```ruby
 class Parent < ActiveRecord::Base
@@ -197,7 +221,7 @@ class ParanoiacChild < ActiveRecord::Base
   belongs_to :parent
 
   # You may need to provide a foreign_key like this
-  belongs_to :parent_including_deleted, :class_name => "Parent", foreign_key => 'parent_id', :with_deleted => true
+  belongs_to :parent_including_deleted, :class_name => "Parent", :foreign_key => 'parent_id', :with_deleted => true
 end
 
 parent = Parent.first
@@ -272,5 +296,6 @@ And all the specs should be green.
 * To [Gonçalo Silva](https://github.com/goncalossilva) for supporting this gem prior to v0.4.3
 * To [Jean Boussier](https://github.com/byroot) for initial Rails 4.0.0 support
 * To [Matijs van Zuijlen](https://github.com/mvz) for Rails 4.1 and 4.2 support
+* To [Andrey Ponomarenko](https://github.com/sjke) for Rails 5 support
 
 See `LICENSE`.

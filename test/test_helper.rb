@@ -113,14 +113,14 @@ def setup_db
 
     create_table :super_paranoids do |t|
       t.string :type
-      t.references :has_many_inherited_super_paranoidz
+      t.references :has_many_inherited_super_paranoidz, index: { name: 'index__sp_id_on_has_many_isp' }
       t.datetime :deleted_at
 
       timestamps t
     end
 
     create_table :has_many_inherited_super_paranoidzs do |t|
-      t.references :super_paranoidz
+      t.references :super_paranoidz, index: { name: 'index_has_many_isp_on_sp_id' }
       t.datetime :deleted_at
 
       timestamps t
@@ -183,6 +183,33 @@ def setup_db
       t.string    :paranoid_thing_type
       t.datetime :deleted_at
     end
+
+    create_table :paranoid_boolean_not_nullables do |t|
+      t.string :name
+      t.boolean :deleted, :boolean, :null => false, :default => false
+    end
+
+    create_table :paranoid_belongs_to_polymorphics do |t|
+      t.string :name
+      t.string :parent_type
+      t.integer :parent_id
+      t.datetime :deleted_at
+
+      t.timestamps
+    end
+
+    create_table :not_paranoid_has_many_as_parents do |t|
+      t.string :name
+
+      t.timestamps
+    end
+
+    create_table :paranoid_has_many_as_parents do |t|
+      t.string :name
+      t.datetime :deleted_at
+
+      t.timestamps
+    end
   end
 end
 
@@ -192,9 +219,12 @@ def timestamps(table)
 end
 
 def teardown_db
-  ActiveRecord::Base.connection.tables.each do |table|
-    ActiveRecord::Base.connection.drop_table(table)
+  tables = if ActiveRecord::VERSION::MAJOR < 5
+    ActiveRecord::Base.connection.tables
+  else
+    ActiveRecord::Base.connection.data_sources
   end
+  tables.each { |table| ActiveRecord::Base.connection.drop_table(table) }
 end
 
 class ParanoidTime < ActiveRecord::Base
@@ -383,6 +413,20 @@ class ParanoidWithScopedValidation < ActiveRecord::Base
   validates_uniqueness_of :name, :scope => :category
 end
 
+class ParanoidBelongsToPolymorphic < ActiveRecord::Base
+  acts_as_paranoid
+  belongs_to :parent, :polymorphic => true, :with_deleted => true
+end
+
+class NotParanoidHasManyAsParent < ActiveRecord::Base
+  has_many :paranoid_belongs_to_polymorphics, :as => :parent, :dependent => :destroy
+end
+
+class ParanoidHasManyAsParent < ActiveRecord::Base
+  acts_as_paranoid
+  has_many :paranoid_belongs_to_polymorphics, :as => :parent, :dependent => :destroy
+end
+
 class ParanoidBaseTest < ActiveSupport::TestCase
   def setup
     setup_db
@@ -460,3 +504,8 @@ class ParanoidSection < ActiveRecord::Base
   belongs_to :paranoid_time
   belongs_to :paranoid_thing, :polymorphic => true, :dependent => :destroy
 end
+
+class ParanoidBooleanNotNullable < ActiveRecord::Base
+  acts_as_paranoid column: 'deleted', column_type: 'boolean', allow_nulls: false
+end
+
