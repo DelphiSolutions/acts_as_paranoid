@@ -1,11 +1,7 @@
 source 'https://rubygems.org'
 
-git 'git://github.com/rails/rails.git' do
-  gem 'activerecord', :require => 'active_record'
-  gem 'activesupport', :require => 'active_support'
-end
-
-gem 'arel', :github => 'rails/arel'
+gem 'activerecord', '>= 5.0.0.beta1', '< 5.1', require: 'active_record'
+gem 'activesupport', '>= 5.0.0.beta1', '< 5.1', require: 'active_support'
 
 platforms :ruby do
   if RUBY_VERSION > "2.1.0"

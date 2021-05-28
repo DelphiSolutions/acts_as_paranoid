@@ -2,6 +2,7 @@ require 'acts_as_paranoid/core'
 require 'acts_as_paranoid/associations'
 require 'acts_as_paranoid/validations'
 require 'acts_as_paranoid/relation'
+require 'acts_as_paranoid/preloader_association'
 
 module ActsAsParanoid
 
@@ -26,7 +27,8 @@ module ActsAsParanoid
       dependent_destroy_paranoid_only: false,
       without_default_scope: false
     }
-    self.paranoid_configuration[:deleted_value] = "deleted" if options[:column_type].to_s == "string"
+    self.paranoid_configuration.merge!(deleted_value: "deleted") if options[:column_type] == "string"
+    self.paranoid_configuration.merge!(allow_nulls: true ) if options[:column_type] == "boolean"
     self.paranoid_configuration.merge!(options) # user options
 
     unless ['time', 'boolean', 'string'].include? paranoid_configuration[:column_type].to_s
@@ -40,15 +42,15 @@ module ActsAsParanoid
     include ActsAsParanoid::Core
 
     # Magic!
-    default_scope { where(paranoid_default_scope_sql) } unless paranoid_configuration[:without_default_scope]
+    default_scope { where(paranoid_default_scope) } unless paranoid_configuration[:without_default_scope]
 
     if paranoid_configuration[:column_type].to_s == 'time'
       scope :deleted_inside_time_window, lambda {|time, window|
         deleted_after_time((time - window)).deleted_before_time((time + window))
       }
 
-      scope :deleted_after_time, lambda  { |time| where("#{paranoid_column} > ?", time) }
-      scope :deleted_before_time, lambda { |time| where("#{paranoid_column} < ?", time) }
+      scope :deleted_after_time, lambda  { |time| where("#{self.table_name}.#{paranoid_column} > ?", time) }
+      scope :deleted_before_time, lambda { |time| where("#{self.table_name}.#{paranoid_column} < ?", time) }
     end
   end
 end
@@ -64,3 +66,6 @@ ActiveRecord::Relation.send :include, ActsAsParanoid::Relation
 
 # Push the recover callback onto the activerecord callback list
 ActiveRecord::Callbacks::CALLBACKS.push(:before_recover, :after_recover)
+
+# Use with_deleted in preloader build_scope
+ActiveRecord::Associations::Preloader::Association.send :include, ActsAsParanoid::PreloaderAssociation
